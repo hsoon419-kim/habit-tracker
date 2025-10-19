@@ -92,6 +92,23 @@
                 <!-- 차트가 여기에 동적으로 생성됩니다 -->
             </div>
         </div>
+
+        <!-- 데이터 관리 -->
+        <div class="data-management">
+            <h3>💾 데이터 관리</h3>
+            <div class="data-actions">
+                <button id="exportJsonBtn">데이터 내보내기 (JSON)</button>
+                <label for="importJsonFile" class="file-label">JSON 파일 가져오기</label>
+                <input type="file" id="importJsonFile" accept="application/json" style="display:none;" />
+            </div>
+            <div class="data-import-text">
+                <textarea id="importJsonText" placeholder="여기에 JSON 데이터를 붙여넣고 가져오기 버튼을 누르세요"></textarea>
+                <div class="import-text-actions">
+                    <button id="importJsonTextBtn">텍스트에서 가져오기</button>
+                </div>
+            </div>
+            <p class="data-hint">내보내기에는 습관 목록과 기록(달력 스티커)이 모두 포함됩니다. 가져오면 기존 데이터는 백업된 후 덮어씌워집니다.</p>
+        </div>
     </div>
 
     <script src="habit-tracker.js"></script>

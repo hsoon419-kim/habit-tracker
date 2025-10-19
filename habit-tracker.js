@@ -36,6 +36,20 @@ class HabitTracker {
         document.getElementById('nextMonth').addEventListener('click', () => {
             this.changeMonth(1);
         });
+
+        // 데이터 관리 - 내보내기/가져오기
+        const exportBtn = document.getElementById('exportJsonBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.exportDataAsJson());
+        }
+        const importFileInput = document.getElementById('importJsonFile');
+        if (importFileInput) {
+            importFileInput.addEventListener('change', (e) => this.importFromFile(e));
+        }
+        const importTextBtn = document.getElementById('importJsonTextBtn');
+        if (importTextBtn) {
+            importTextBtn.addEventListener('click', () => this.importFromTextarea());
+        }
     }
 
     addHabit() {
@@ -72,6 +86,98 @@ class HabitTracker {
         
         // 성공 메시지
         this.showMessage('새 습관이 추가되었습니다! 🎉');
+    }
+
+    // ===== 데이터 내보내기/가져오기 =====
+    buildExportPayload() {
+        return {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            habits: this.habits,
+            records: this.habitRecords
+        };
+    }
+
+    exportDataAsJson() {
+        const payload = this.buildExportPayload();
+        const json = JSON.stringify(payload, null, 2);
+
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const dateStr = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        link.href = url;
+        link.download = `habit-tracker-backup-${dateStr}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        this.showMessage('데이터를 JSON 파일로 내보냈습니다.');
+    }
+
+    importFromFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const parsed = JSON.parse(reader.result);
+                this.applyImportedData(parsed);
+            } catch (err) {
+                alert('유효한 JSON 파일이 아닙니다.');
+            } finally {
+                event.target.value = '';
+            }
+        };
+        reader.readAsText(file, 'utf-8');
+    }
+
+    importFromTextarea() {
+        const textarea = document.getElementById('importJsonText');
+        if (!textarea) return;
+        const value = textarea.value.trim();
+        if (!value) {
+            alert('가져올 JSON 텍스트를 입력해주세요.');
+            return;
+        }
+        try {
+            const parsed = JSON.parse(value);
+            this.applyImportedData(parsed);
+            textarea.value = '';
+        } catch (err) {
+            alert('유효한 JSON 텍스트가 아닙니다.');
+        }
+    }
+
+    applyImportedData(payload) {
+        // 기본 검증
+        if (!payload || typeof payload !== 'object') {
+            alert('가져올 데이터 형식이 올바르지 않습니다.');
+            return;
+        }
+        if (!Array.isArray(payload.habits) || typeof payload.records !== 'object') {
+            alert('가져올 데이터에 필요한 필드가 없습니다.');
+            return;
+        }
+
+        // 백업 저장
+        const backupKey = `habitTracker_backup_${Date.now()}`;
+        const current = this.buildExportPayload();
+        localStorage.setItem(backupKey, JSON.stringify(current));
+
+        // 덮어쓰기
+        this.habits = payload.habits;
+        this.habitRecords = payload.records;
+        this.saveHabits();
+        this.saveRecords();
+
+        // 리렌더
+        this.renderHabits();
+        this.updateLegend();
+        this.renderCalendar();
+        this.renderTrendChart();
+        this.showMessage('데이터를 가져왔습니다. (이전 데이터는 로컬 백업됨)');
     }
 
     deleteHabit(habitId) {

@@ -449,6 +449,69 @@ header p {
     font-style: italic;
 }
 
+/* 데이터 관리 */
+.data-management {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    margin-top: 20px;
+}
+
+.data-management h3 {
+    margin-bottom: 15px;
+    color: #4a5568;
+    font-size: 1.3rem;
+}
+
+.data-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.data-actions button, .import-text-actions button, .file-label {
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.2s;
+}
+
+.data-actions button:hover, .import-text-actions button:hover, .file-label:hover {
+    transform: translateY(-2px);
+}
+
+.file-label {
+    display: inline-block;
+}
+
+.data-import-text {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: start;
+}
+
+.data-import-text textarea {
+    width: 100%;
+    min-height: 120px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 14px;
+}
+
+.data-hint {
+    margin-top: 10px;
+    color: #718096;
+    font-size: 12px;
+}
+
 .legend-color {
     width: 16px;
     height: 16px;
