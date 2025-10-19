@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>습관 기록 앱</title>
+    <link rel="stylesheet" href="habit-tracker.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 습관 기록 앱</h1>
+            <p>매일의 습관을 기록하고 달력에 스티커를 붙여보세요!</p>
+        </header>
+
+        <div class="main-content">
+            <!-- 습관 관리 섹션 -->
+            <div class="habits-section">
+                <h2>📝 내 습관들</h2>
+                <div class="add-habit">
+                    <input type="text" id="habitName" placeholder="새 습관을 입력하세요 (예: 운동, 공부, 독서)">
+                    <select id="habitColor">
+                        <!-- 빨간색 계열 -->
+                        <option value="red">🔴 빨강</option>
+                        <option value="coral">🔴 코랄</option>
+                        <option value="rose">🔴 로즈</option>
+                        
+                        <!-- 주황색 계열 -->
+                        <option value="orange">🟠 주황</option>
+                        <option value="amber">🟠 앰버</option>
+                        
+                        <!-- 노란색 계열 -->
+                        <option value="yellow">🟡 노랑</option>
+                        <option value="lime">🟡 라임</option>
+                        
+                        <!-- 초록색 계열 -->
+                        <option value="green">🟢 초록</option>
+                        <option value="emerald">🟢 에메랄드</option>
+                        <option value="mint">🟢 민트</option>
+                        <option value="teal">🟢 청록</option>
+                        
+                        <!-- 파란색 계열 -->
+                        <option value="sky">🔵 스카이</option>
+                        <option value="blue">🔵 파랑</option>
+                        <option value="cyan">🔵 시안</option>
+                        <option value="indigo">🔵 남색</option>
+                        
+                        <!-- 보라색 계열 -->
+                        <option value="purple">🟣 보라</option>
+                        <option value="violet">🟣 바이올렛</option>
+                        
+                        <!-- 핑크색 계열 -->
+                        <option value="pink">🟣 핑크</option>
+                        
+                        <!-- 회색 계열 -->
+                        <option value="slate">⚫ 슬레이트</option>
+                    </select>
+                    <button id="addHabitBtn">습관 추가</button>
+                </div>
+                
+                <div class="habits-list" id="habitsList">
+                    <!-- 습관 목록이 여기에 동적으로 추가됩니다 -->
+                </div>
+            </div>
+
+            <!-- 달력 섹션 -->
+            <div class="calendar-section">
+                <h2>📅 습관 달력</h2>
+                <div class="calendar-controls">
+                    <button id="prevMonth">◀</button>
+                    <h3 id="currentMonth"></h3>
+                    <button id="nextMonth">▶</button>
+                </div>
+                <div class="calendar" id="calendar">
+                    <!-- 달력이 여기에 동적으로 생성됩니다 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 습관 색상 범례 -->
+        <div class="legend">
+            <h3>🎨 습관 색상 범례</h3>
+            <div class="legend-items" id="legendItems">
+                <!-- 범례가 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+
+        <!-- 트렌드 차트 -->
+        <div class="trend-chart">
+            <h3>📈 습관 트렌드 (최근 30일)</h3>
+            <div class="chart-container" id="chartContainer">
+                <!-- 차트가 여기에 동적으로 생성됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="habit-tracker.js"></script>
+</body>
+</html>
