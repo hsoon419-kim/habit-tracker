@@ -3,59 +3,45 @@ class HabitTracker {
         this.habits = this.loadHabits();
         this.currentDate = new Date();
         this.habitRecords = this.loadRecords();
+        this.selectedDate = null;
         
         this.init();
     }
 
     init() {
         this.setupEventListeners();
-        this.renderHabits();
         this.renderCalendar();
         this.updateLegend();
         this.renderTrendChart();
     }
 
     setupEventListeners() {
-        // 습관 추가 버튼
-        document.getElementById('addHabitBtn').addEventListener('click', () => {
-            this.addHabit();
-        });
-
-        // 엔터키로 습관 추가
+        document.getElementById('addHabitBtn').addEventListener('click', () => this.addHabit());
         document.getElementById('habitName').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.addHabit();
-            }
+            if (e.key === 'Enter') this.addHabit();
         });
 
-        // 달력 네비게이션
-        document.getElementById('prevMonth').addEventListener('click', () => {
-            this.changeMonth(-1);
+        document.getElementById('prevMonth').addEventListener('click', () => this.changeMonth(-1));
+        document.getElementById('nextMonth').addEventListener('click', () => this.changeMonth(1));
+
+        document.getElementById('addMemoBtn').addEventListener('click', () => this.addMemo());
+        document.getElementById('memoInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.addMemo();
         });
 
-        document.getElementById('nextMonth').addEventListener('click', () => {
-            this.changeMonth(1);
-        });
-
-        // 데이터 관리 - 내보내기/가져오기
         const exportBtn = document.getElementById('exportJsonBtn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.exportDataAsJson());
-        }
+        if (exportBtn) exportBtn.addEventListener('click', () => this.exportDataAsJson());
+        
         const importFileInput = document.getElementById('importJsonFile');
-        if (importFileInput) {
-            importFileInput.addEventListener('change', (e) => this.importFromFile(e));
-        }
+        if (importFileInput) importFileInput.addEventListener('change', (e) => this.importFromFile(e));
+        
         const importTextBtn = document.getElementById('importJsonTextBtn');
-        if (importTextBtn) {
-            importTextBtn.addEventListener('click', () => this.importFromTextarea());
-        }
+        if (importTextBtn) importTextBtn.addEventListener('click', () => this.importFromTextarea());
     }
 
     addHabit() {
         const nameInput = document.getElementById('habitName');
         const colorSelect = document.getElementById('habitColor');
-        
         const name = nameInput.value.trim();
         const color = colorSelect.value;
         
@@ -63,45 +49,265 @@ class HabitTracker {
             alert('습관 이름을 입력해주세요!');
             return;
         }
-
         if (this.habits.some(habit => habit.name === name)) {
             alert('이미 같은 이름의 습관이 있습니다!');
             return;
         }
 
-        const newHabit = {
-            id: Date.now().toString(),
-            name: name,
-            color: color
-        };
-
+        const newHabit = { id: Date.now().toString(), name, color };
         this.habits.push(newHabit);
         this.saveHabits();
-        this.renderHabits();
         this.updateLegend();
+        this.renderTrendChart();
+        if (this.selectedDate) this.renderDailyDetails();
         
-        // 입력 필드 초기화
         nameInput.value = '';
         colorSelect.value = 'blue';
-        
-        // 성공 메시지
         this.showMessage('새 습관이 추가되었습니다! 🎉');
     }
 
-    // ===== 데이터 내보내기/가져오기 =====
+    deleteHabit(habitId) {
+        if (!confirm('정말로 이 습관을 삭제하시겠습니까? 관련된 모든 기록이 사라집니다.')) return;
+
+        this.habits = this.habits.filter(habit => habit.id !== habitId);
+        Object.keys(this.habitRecords).forEach(dateKey => {
+            const record = this.getRecord(dateKey);
+            record.completed = record.completed.filter(id => id !== habitId);
+        });
+
+        this.saveHabits();
+        this.saveRecords();
+        this.updateLegend();
+        this.renderCalendar();
+        this.renderTrendChart();
+        if (this.selectedDate) this.renderDailyDetails();
+
+        this.showMessage('습관이 삭제되었습니다.');
+    }
+
+    updateLegend() {
+        const legendItems = document.getElementById('legendItems');
+        legendItems.innerHTML = '';
+
+        if (this.habits.length === 0) {
+            legendItems.innerHTML = '<p style="color: #a0aec0; text-align: center; padding: 15px 0;">습관을 추가하면 여기에 표시됩니다.</p>';
+            return;
+        }
+
+        this.habits.forEach(habit => {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.style.borderLeftColor = this.getColorValue(habit.color);
+            item.innerHTML = `
+                <div class="legend-info">
+                    <div class="legend-color color-${habit.color}"></div>
+                    <span class="legend-name">${habit.name}</span>
+                </div>
+                <button class="delete-habit" title="습관 삭제">×</button>
+            `;
+            item.querySelector('.delete-habit').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteHabit(habit.id);
+            });
+            legendItems.appendChild(item);
+        });
+    }
+
+    renderCalendar() {
+        const calendar = document.getElementById('calendar');
+        const currentMonthEl = document.getElementById('currentMonth');
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        currentMonthEl.textContent = `${year}년 ${month + 1}월`;
+        calendar.innerHTML = '';
+
+        const dayHeaders = ['일', '월', '화', '수', '목', '금', '토'];
+        dayHeaders.forEach(day => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'day-header';
+            dayHeader.textContent = day;
+            calendar.appendChild(dayHeader);
+        });
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+        const today = new Date();
+
+        for (let i = 0; i < 42; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+            const dayElement = document.createElement('div');
+            dayElement.className = 'day';
+
+            if (date.getMonth() !== month) dayElement.classList.add('other-month');
+            if (date.getDay() === 0 || date.getDay() === 6) dayElement.classList.add('weekend');
+            if (this.isSameDate(date, today)) dayElement.classList.add('today');
+            if (this.selectedDate && this.isSameDate(date, this.selectedDate)) {
+                dayElement.classList.add('selected');
+            }
+
+            dayElement.innerHTML = `<div class="day-number">${date.getDate()}</div><div class="stickers"></div>`;
+            this.renderDayStickers(dayElement, date);
+            dayElement.addEventListener('click', () => this.showDetailsForDate(date, dayElement));
+            calendar.appendChild(dayElement);
+        }
+    }
+
+    renderDayStickers(dayElement, date) {
+        const stickersContainer = dayElement.querySelector('.stickers');
+        const dateKey = this.getDateKey(date);
+        const record = this.getRecord(dateKey);
+        stickersContainer.innerHTML = '';
+
+        record.completed.forEach(habitId => {
+            const habit = this.habits.find(h => h.id === habitId);
+            if (habit) {
+                const sticker = document.createElement('div');
+                sticker.className = `sticker color-${habit.color}`;
+                sticker.title = habit.name;
+                stickersContainer.appendChild(sticker);
+            }
+        });
+    }
+
+    showDetailsForDate(date, dayElement) {
+        this.selectedDate = date;
+
+        document.querySelectorAll('.day.selected').forEach(el => el.classList.remove('selected'));
+        if (dayElement) dayElement.classList.add('selected');
+
+        const titleEl = document.getElementById('dailyDetailsTitle');
+        const contentEl = document.getElementById('dailyDetailsContent');
+        titleEl.style.display = 'none';
+        contentEl.classList.remove('hidden');
+
+        document.getElementById('selectedDateStr').textContent = `${date.getMonth() + 1}월 ${date.getDate()}일`;
+        this.renderDailyDetails();
+    }
+
+        renderDailyDetails() {
+        if (!this.selectedDate) return;
+
+        const dateKey = this.getDateKey(this.selectedDate);
+        const record = this.getRecord(dateKey);
+        const dailyHabitsList = document.getElementById('dailyHabitsList');
+        const memoList = document.getElementById('memoList');
+        dailyHabitsList.innerHTML = '';
+        memoList.innerHTML = '';
+
+        if (this.habits.length === 0) {
+            dailyHabitsList.innerHTML = '<p class="no-data">관리 탭에서 먼저 습관을 추가해주세요.</p>';
+        } else {
+            this.habits.forEach(habit => {
+                const item = document.createElement('div');
+                item.className = 'daily-habit-item';
+                const isChecked = record.completed.includes(habit.id);
+                item.innerHTML = `
+                    <label for="habit-check-${habit.id}">
+                        <input type="checkbox" id="habit-check-${habit.id}" ${isChecked ? 'checked' : ''}>
+                        <span class="legend-color color-${habit.color}"></span>
+                        ${habit.name}
+                    </label>
+                `;
+                item.querySelector('input').addEventListener('change', (e) => {
+                    this.updateHabitStatus(habit.id, e.target.checked);
+                });
+                dailyHabitsList.appendChild(item);
+            });
+        }
+
+        if (record.memos.length > 0) {
+            record.memos.forEach((memo, index) => {
+                const item = document.createElement('div');
+                item.className = 'memo-item';
+                if (memo.done) item.classList.add('done');
+                
+                item.innerHTML = `
+                    <label for="memo-check-${index}">
+                        <input type="checkbox" id="memo-check-${index}" ${memo.done ? 'checked' : ''}>
+                        <span>${memo.text}</span>
+                    </label>
+                    <button class="delete-memo">×</button>
+                `;
+                item.querySelector('input').addEventListener('change', (e) => {
+                    this.updateMemoStatus(index, e.target.checked);
+                });
+                item.querySelector('.delete-memo').addEventListener('click', () => this.deleteMemo(index));
+                memoList.appendChild(item);
+            });
+        } else {
+            memoList.innerHTML = '<p class="no-data">이 날짜에 추가된 메모가 없습니다.</p>';
+        }
+    }
+
+    updateHabitStatus(habitId, isChecked) {
+        const dateKey = this.getDateKey(this.selectedDate);
+        const record = this.getRecord(dateKey);
+        const habitExists = record.completed.includes(habitId);
+
+        if (isChecked && !habitExists) {
+            record.completed.push(habitId);
+        } else if (!isChecked && habitExists) {
+            record.completed = record.completed.filter(id => id !== habitId);
+        }
+
+        this.saveRecords();
+        this.renderCalendar();
+        this.renderTrendChart();
+    }
+
+        addMemo() {
+        if (!this.selectedDate) {
+            alert('메모를 추가할 날짜를 먼저 선택해주세요.');
+            return;
+        }
+        const memoInput = document.getElementById('memoInput');
+        const memoText = memoInput.value.trim();
+        if (!memoText) return;
+
+        const dateKey = this.getDateKey(this.selectedDate);
+        const record = this.getRecord(dateKey);
+        record.memos.push({ text: memoText, done: false }); // Changed
+        this.saveRecords();
+        this.renderDailyDetails();
+        memoInput.value = '';
+    }
+
+    deleteMemo(index) {
+        const dateKey = this.getDateKey(this.selectedDate);
+        const record = this.getRecord(dateKey);
+        record.memos.splice(index, 1);
+        this.saveRecords();
+        this.renderDailyDetails();
+    }
+
+    updateMemoStatus(index, isChecked) { // New function
+        const dateKey = this.getDateKey(this.selectedDate);
+        const record = this.getRecord(dateKey);
+        if (record.memos[index]) {
+            record.memos[index].done = isChecked;
+            this.saveRecords();
+            this.renderDailyDetails();
+        }
+    }
+
+    changeMonth(direction) {
+        this.currentDate.setMonth(this.currentDate.getMonth() + direction);
+        this.renderCalendar();
+    }
+
+    // --- 데이터 관리 및 유틸리티 함수들 ---
+
     buildExportPayload() {
-        return {
-            version: 1,
-            exportedAt: new Date().toISOString(),
-            habits: this.habits,
-            records: this.habitRecords
-        };
+        return { version: 2, exportedAt: new Date().toISOString(), habits: this.habits, records: this.habitRecords };
     }
 
     exportDataAsJson() {
         const payload = this.buildExportPayload();
         const json = JSON.stringify(payload, null, 2);
-
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -112,7 +318,6 @@ class HabitTracker {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-
         this.showMessage('데이터를 JSON 파일로 내보냈습니다.');
     }
 
@@ -122,8 +327,7 @@ class HabitTracker {
         const reader = new FileReader();
         reader.onload = () => {
             try {
-                const parsed = JSON.parse(reader.result);
-                this.applyImportedData(parsed);
+                this.applyImportedData(JSON.parse(reader.result));
             } catch (err) {
                 alert('유효한 JSON 파일이 아닙니다.');
             } finally {
@@ -142,8 +346,7 @@ class HabitTracker {
             return;
         }
         try {
-            const parsed = JSON.parse(value);
-            this.applyImportedData(parsed);
+            this.applyImportedData(JSON.parse(value));
             textarea.value = '';
         } catch (err) {
             alert('유효한 JSON 텍스트가 아닙니다.');
@@ -151,221 +354,51 @@ class HabitTracker {
     }
 
     applyImportedData(payload) {
-        // 기본 검증
-        if (!payload || typeof payload !== 'object') {
+        if (!payload || typeof payload !== 'object' || !Array.isArray(payload.habits) || typeof payload.records !== 'object') {
             alert('가져올 데이터 형식이 올바르지 않습니다.');
             return;
         }
-        if (!Array.isArray(payload.habits) || typeof payload.records !== 'object') {
-            alert('가져올 데이터에 필요한 필드가 없습니다.');
-            return;
-        }
 
-        // 백업 저장
         const backupKey = `habitTracker_backup_${Date.now()}`;
-        const current = this.buildExportPayload();
-        localStorage.setItem(backupKey, JSON.stringify(current));
+        localStorage.setItem(backupKey, JSON.stringify(this.buildExportPayload()));
 
-        // 덮어쓰기
         this.habits = payload.habits;
-        this.habitRecords = payload.records;
+        this.habitRecords = this.migrateRecords(payload.records); // 마이그레이션 적용
         this.saveHabits();
         this.saveRecords();
 
-        // 리렌더
-        this.renderHabits();
+        this.selectedDate = null;
+        document.getElementById('dailyDetailsTitle').style.display = 'block';
+        document.getElementById('dailyDetailsContent').classList.add('hidden');
+
         this.updateLegend();
         this.renderCalendar();
         this.renderTrendChart();
         this.showMessage('데이터를 가져왔습니다. (이전 데이터는 로컬 백업됨)');
     }
 
-    deleteHabit(habitId) {
-        if (confirm('정말로 이 습관을 삭제하시겠습니까?')) {
-            this.habits = this.habits.filter(habit => habit.id !== habitId);
-            this.saveHabits();
-        this.renderHabits();
-        this.updateLegend();
-        this.renderCalendar(); // 달력도 다시 렌더링하여 삭제된 습관의 스티커 제거
-        this.renderTrendChart(); // 트렌드 차트도 업데이트
-        this.showMessage('습관이 삭제되었습니다.');
-        }
-    }
-
-    renderHabits() {
-        const habitsList = document.getElementById('habitsList');
-        habitsList.innerHTML = '';
-
-        if (this.habits.length === 0) {
-            habitsList.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 20px;">아직 추가된 습관이 없습니다. 위에서 새 습관을 추가해보세요!</p>';
-            return;
-        }
-
-        this.habits.forEach(habit => {
-            const habitElement = document.createElement('div');
-            habitElement.className = 'habit-item';
-            habitElement.innerHTML = `
-                <div class="habit-info">
-                    <div class="habit-color color-${habit.color}"></div>
-                    <span class="habit-name">${habit.name}</span>
-                </div>
-                <button class="delete-habit" onclick="habitTracker.deleteHabit('${habit.id}')">×</button>
-            `;
-            habitsList.appendChild(habitElement);
-        });
-    }
-
-    renderCalendar() {
-        const calendar = document.getElementById('calendar');
-        const currentMonth = document.getElementById('currentMonth');
-        
-        // 현재 월 표시
-        const year = this.currentDate.getFullYear();
-        const month = this.currentDate.getMonth();
-        currentMonth.textContent = `${year}년 ${month + 1}월`;
-
-        // 달력 초기화
-        calendar.innerHTML = '';
-
-        // 요일 헤더
-        const dayHeaders = ['일', '월', '화', '수', '목', '금', '토'];
-        dayHeaders.forEach(day => {
-            const dayHeader = document.createElement('div');
-            dayHeader.className = 'day-header';
-            dayHeader.textContent = day;
-            calendar.appendChild(dayHeader);
-        });
-
-        // 달력 날짜 생성
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        const startDate = new Date(firstDay);
-        startDate.setDate(startDate.getDate() - firstDay.getDay());
-
-        const today = new Date();
-        const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
-
-        for (let i = 0; i < 42; i++) {
-            const date = new Date(startDate);
-            date.setDate(startDate.getDate() + i);
-            
-            const dayElement = document.createElement('div');
-            dayElement.className = 'day';
-            
-            // 다른 달의 날짜 스타일
-            if (date.getMonth() !== month) {
-                dayElement.classList.add('other-month');
-            }
-            
-            // 주말 날짜 스타일 (토요일=6, 일요일=0)
-            if (date.getDay() === 0 || date.getDay() === 6) {
-                dayElement.classList.add('weekend');
-            }
-            
-            // 오늘 날짜 스타일
-            if (isCurrentMonth && date.getDate() === today.getDate()) {
-                dayElement.classList.add('today');
-            }
-
-            dayElement.innerHTML = `
-                <div class="day-number">${date.getDate()}</div>
-                <div class="stickers"></div>
-            `;
-
-            // 해당 날짜의 습관 기록 표시
-            this.renderDayStickers(dayElement, date);
-
-            // 날짜 클릭 이벤트
-            dayElement.addEventListener('click', () => {
-                this.toggleHabitOnDate(date);
-            });
-
-            calendar.appendChild(dayElement);
-        }
-    }
-
-    renderDayStickers(dayElement, date) {
-        const stickersContainer = dayElement.querySelector('.stickers');
-        const dateKey = this.getDateKey(date);
-        const dayRecords = this.habitRecords[dateKey] || [];
-
-        stickersContainer.innerHTML = '';
-
-        dayRecords.forEach(habitId => {
-            const habit = this.habits.find(h => h.id === habitId);
-            if (habit) {
-                const sticker = document.createElement('div');
-                sticker.className = `sticker color-${habit.color}`;
-                sticker.title = habit.name;
-                stickersContainer.appendChild(sticker);
+    migrateRecords(records) {
+        // version 1 -> 2 (add .completed and .memos)
+        // version 2 -> 3 (memos string[] to object[])
+        Object.keys(records).forEach(dateKey => {
+            const record = records[dateKey];
+            if (Array.isArray(record)) { // v1 data: ["habitId1", ...]
+                records[dateKey] = {
+                    completed: record,
+                    memos: []
+                };
+            } else if (record && record.memos && record.memos.length > 0 && typeof record.memos[0] === 'string') { // v2 data
+                record.memos = record.memos.map(memoText => ({ text: memoText, done: false }));
             }
         });
+        return records;
     }
 
-    toggleHabitOnDate(date) {
-        if (this.habits.length === 0) {
-            this.showMessage('먼저 습관을 추가해주세요!');
-            return;
-        }
-
-        const dateKey = this.getDateKey(date);
+    getRecord(dateKey) {
         if (!this.habitRecords[dateKey]) {
-            this.habitRecords[dateKey] = [];
+            this.habitRecords[dateKey] = { completed: [], memos: [] };
         }
-
-        // 습관 선택 다이얼로그
-        const habitNames = this.habits.map(habit => habit.name);
-        const selectedHabit = prompt(`어떤 습관을 기록하시겠습니까?\n\n${habitNames.map((name, index) => `${index + 1}. ${name}`).join('\n')}\n\n번호를 입력하세요:`, '1');
-        
-        if (selectedHabit === null) return;
-
-        const habitIndex = parseInt(selectedHabit) - 1;
-        if (isNaN(habitIndex) || habitIndex < 0 || habitIndex >= this.habits.length) {
-            alert('올바른 번호를 입력해주세요!');
-            return;
-        }
-
-        const selectedHabitId = this.habits[habitIndex].id;
-        const dayRecords = this.habitRecords[dateKey];
-
-        if (dayRecords.includes(selectedHabitId)) {
-            // 이미 기록된 습관이면 제거
-            this.habitRecords[dateKey] = dayRecords.filter(id => id !== selectedHabitId);
-            this.showMessage('습관 기록이 제거되었습니다.');
-        } else {
-            // 새로운 습관 기록 추가
-            this.habitRecords[dateKey].push(selectedHabitId);
-            this.showMessage('습관이 기록되었습니다! 🎉');
-        }
-
-        this.saveRecords();
-        this.renderCalendar();
-        this.renderTrendChart(); // 트렌드 차트도 업데이트
-    }
-
-    changeMonth(direction) {
-        this.currentDate.setMonth(this.currentDate.getMonth() + direction);
-        this.renderCalendar();
-    }
-
-    updateLegend() {
-        const legendItems = document.getElementById('legendItems');
-        legendItems.innerHTML = '';
-
-        if (this.habits.length === 0) {
-            legendItems.innerHTML = '<p style="color: #a0aec0; text-align: center;">습관을 추가하면 여기에 색상 범례가 표시됩니다.</p>';
-            return;
-        }
-
-        this.habits.forEach(habit => {
-            const legendItem = document.createElement('div');
-            legendItem.className = 'legend-item';
-            legendItem.innerHTML = `
-                <div class="legend-color color-${habit.color}"></div>
-                <span>${habit.name}</span>
-            `;
-            legendItems.appendChild(legendItem);
-        });
+        return this.habitRecords[dateKey];
     }
 
     renderTrendChart() {
@@ -386,42 +419,26 @@ class HabitTracker {
 
     getHabitTrendData(habitId) {
         const today = new Date();
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 29); // 30일간
-
         const data = [];
         for (let i = 0; i < 30; i++) {
-            const date = new Date(thirtyDaysAgo);
-            date.setDate(thirtyDaysAgo.getDate() + i);
-            const dateKey = this.getDateKey(date);
-            const dayRecords = this.habitRecords[dateKey] || [];
-            const isCompleted = dayRecords.includes(habitId);
-            const isToday = this.isSameDate(date, today);
-            
+            const date = new Date(today);
+            date.setDate(today.getDate() - (29 - i));
+            const record = this.getRecord(this.getDateKey(date));
             data.push({
-                date: new Date(date),
-                completed: isCompleted,
-                isToday: isToday
+                date: date,
+                completed: record.completed.includes(habitId),
+                isToday: this.isSameDate(date, today)
             });
         }
-
         return data;
-    }
-
-    isSameDate(date1, date2) {
-        return date1.getFullYear() === date2.getFullYear() &&
-               date1.getMonth() === date2.getMonth() &&
-               date1.getDate() === date2.getDate();
     }
 
     createHabitChart(habit, data) {
         const completedCount = data.filter(d => d.completed).length;
         const completionRate = Math.round((completedCount / 30) * 100);
-
         const chartElement = document.createElement('div');
         chartElement.className = 'habit-chart';
         chartElement.style.borderLeftColor = this.getColorValue(habit.color);
-
         chartElement.innerHTML = `
             <div class="habit-chart-header">
                 <div class="habit-chart-name">
@@ -433,62 +450,21 @@ class HabitTracker {
                     <span>완료율: ${completionRate}%</span>
                 </div>
             </div>
-            <div class="chart-bars" id="chart-${habit.id}">
-                ${data.map((day, index) => this.createChartBar(day, habit.color, index)).join('')}
-            </div>
-            <div class="chart-labels">
-                <span>30일 전</span>
-                <span>오늘</span>
-            </div>
+            <div class="chart-bars">${data.map(day => this.createChartBar(day, habit.color)).join('')}</div>
+            <div class="chart-labels"><span>30일 전</span><span>오늘</span></div>
         `;
-
         return chartElement;
     }
 
-    createChartBar(day, color, index) {
+    createChartBar(day, color) {
         const height = day.completed ? '100%' : '20%';
-        const classes = ['chart-bar'];
-        
-        if (day.completed) {
-            classes.push('completed');
-        } else {
-            classes.push('missed');
-        }
-        
-        if (day.isToday) {
-            classes.push('today');
-        }
-
-        return `
-            <div class="${classes.join(' ')}" 
-                 style="background-color: ${this.getColorValue(color)}; height: ${height};"
-                 title="${day.date.toLocaleDateString()}: ${day.completed ? '완료' : '미완료'}">
-            </div>
-        `;
+        const classes = ['chart-bar', day.completed ? 'completed' : 'missed'];
+        if (day.isToday) classes.push('today');
+        return `<div class="${classes.join(' ')}" style="background-color: ${this.getColorValue(color)}; height: ${height};" title="${day.date.toLocaleDateString()}: ${day.completed ? '완료' : '미완료'}"></div>`;
     }
 
     getColorValue(colorName) {
-        const colorMap = {
-            'blue': '#3b82f6',
-            'red': '#ef4444',
-            'green': '#10b981',
-            'purple': '#8b5cf6',
-            'orange': '#f97316',
-            'pink': '#ec4899',
-            'yellow': '#eab308',
-            'teal': '#14b8a6',
-            'indigo': '#6366f1',
-            'coral': '#ff6b6b',
-            'emerald': '#059669',
-            'rose': '#f43f5e',
-            'sky': '#0ea5e9',
-            'lime': '#84cc16',
-            'violet': '#7c3aed',
-            'amber': '#f59e0b',
-            'cyan': '#06b6d4',
-            'slate': '#64748b',
-            'mint': '#6ee7b7'
-        };
+        const colorMap = { 'blue': '#3b82f6', 'red': '#ef4444', 'green': '#10b981', 'purple': '#8b5cf6', 'orange': '#f97316', 'pink': '#ec4899', 'yellow': '#eab308', 'teal': '#14b8a6', 'indigo': '#6366f1', 'coral': '#ff6b6b', 'emerald': '#059669', 'rose': '#f43f5e', 'sky': '#0ea5e9', 'lime': '#84cc16', 'violet': '#7c3aed', 'amber': '#f59e0b', 'cyan': '#06b6d4', 'slate': '#64748b', 'mint': '#6ee7b7' };
         return colorMap[colorName] || '#6b7280';
     }
 
@@ -496,68 +472,34 @@ class HabitTracker {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
+    isSameDate(d1, d2) {
+        return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+    }
+
     showMessage(message) {
-        // 간단한 토스트 메시지
         const toast = document.createElement('div');
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #4a5568;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 1000;
-            animation: slideIn 0.3s ease-out;
-        `;
+        toast.style.cssText = `position: fixed; top: 20px; right: 20px; background: #4a5568; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; animation: slideIn 0.3s ease-out;`;
         toast.textContent = message;
         document.body.appendChild(toast);
-
         setTimeout(() => {
             toast.style.animation = 'slideOut 0.3s ease-out';
-            setTimeout(() => {
-                document.body.removeChild(toast);
-            }, 300);
+            setTimeout(() => { document.body.removeChild(toast); }, 300);
         }, 2000);
     }
 
-    // 로컬 스토리지 관련 메서드들
-    saveHabits() {
-        localStorage.setItem('habitTracker_habits', JSON.stringify(this.habits));
-    }
-
-    loadHabits() {
-        const saved = localStorage.getItem('habitTracker_habits');
-        return saved ? JSON.parse(saved) : [];
-    }
-
-    saveRecords() {
-        localStorage.setItem('habitTracker_records', JSON.stringify(this.habitRecords));
-    }
-
+    saveHabits() { localStorage.setItem('habitTracker_habits', JSON.stringify(this.habits)); }
+    loadHabits() { return JSON.parse(localStorage.getItem('habitTracker_habits') || '[]'); }
+    saveRecords() { localStorage.setItem('habitTracker_records', JSON.stringify(this.habitRecords)); }
     loadRecords() {
         const saved = localStorage.getItem('habitTracker_records');
-        return saved ? JSON.parse(saved) : {};
+        const records = JSON.parse(saved || '{}');
+        return this.migrateRecords(records); // 항상 마이그레이션 함수를 거치도록
     }
 }
 
-// CSS 애니메이션 추가
 const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-`;
+style.textContent = `@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }`;
 document.head.appendChild(style);
 
-// 앱 초기화
 let habitTracker;
-document.addEventListener('DOMContentLoaded', () => {
-    habitTracker = new HabitTracker();
-});
+document.addEventListener('DOMContentLoaded', () => { habitTracker = new HabitTracker(); });
