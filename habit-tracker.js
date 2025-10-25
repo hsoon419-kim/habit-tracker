@@ -4,11 +4,13 @@ class HabitTracker {
         this.currentDate = new Date();
         this.habitRecords = this.loadRecords();
         this.selectedDate = null;
+        this.motto = document.getElementById('lifeMotto');
         
         this.init();
     }
 
     init() {
+        this.loadMotto();
         this.setupEventListeners();
         this.renderCalendar();
         this.updateLegend();
@@ -16,6 +18,14 @@ class HabitTracker {
     }
 
     setupEventListeners() {
+        this.motto.addEventListener('blur', () => this.saveMotto());
+        this.motto.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.motto.blur();
+            }
+        });
+
         document.getElementById('addHabitBtn').addEventListener('click', () => this.addHabit());
         document.getElementById('habitName').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addHabit();
@@ -302,7 +312,7 @@ class HabitTracker {
     // --- 데이터 관리 및 유틸리티 함수들 ---
 
     buildExportPayload() {
-        return { version: 2, exportedAt: new Date().toISOString(), habits: this.habits, records: this.habitRecords };
+        return { version: 3, exportedAt: new Date().toISOString(), habits: this.habits, records: this.habitRecords, motto: this.motto.textContent.trim() };
     }
 
     exportDataAsJson() {
@@ -364,8 +374,10 @@ class HabitTracker {
 
         this.habits = payload.habits;
         this.habitRecords = this.migrateRecords(payload.records); // 마이그레이션 적용
+        this.motto.textContent = payload.motto || '';
         this.saveHabits();
         this.saveRecords();
+        this.saveMotto();
 
         this.selectedDate = null;
         document.getElementById('dailyDetailsTitle').style.display = 'block';
@@ -485,6 +497,18 @@ class HabitTracker {
             toast.style.animation = 'slideOut 0.3s ease-out';
             setTimeout(() => { document.body.removeChild(toast); }, 300);
         }, 2000);
+    }
+
+    loadMotto() {
+        const savedMotto = localStorage.getItem('habitTracker_motto');
+        if (savedMotto) {
+            this.motto.textContent = savedMotto;
+        }
+    }
+
+    saveMotto() {
+        const newMotto = this.motto.textContent.trim();
+        localStorage.setItem('habitTracker_motto', newMotto);
     }
 
     saveHabits() { localStorage.setItem('habitTracker_habits', JSON.stringify(this.habits)); }

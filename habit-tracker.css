@@ -34,6 +34,38 @@ header p {
     opacity: 0.9;
 }
 
+/* 인생의 모토 섹션 */
+.motto-section {
+    text-align: center;
+    margin: -10px 0 30px 0;
+    padding: 15px;
+}
+
+#lifeMotto {
+    font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+    letter-spacing: 2px;
+    padding: 10px 20px;
+    display: inline-block;
+    position: relative;
+    cursor: text;
+    color: rgba(255, 255, 255, 0.85);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+#lifeMotto:focus {
+    outline: none;
+    border-bottom-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Placeholder 스타일 */
+#lifeMotto:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(255, 255, 255, 0.5);
+}
+
 .main-content {
     display: grid;
     grid-template-columns: 1fr 2fr;
@@ -41,11 +73,15 @@ header p {
     margin-bottom: 30px;
 }
 
-.habits-section, .calendar-section {
+.daily-details-section, .calendar-section, .habits-section, .trend-chart, .data-management {
     background: white;
     border-radius: 15px;
     padding: 25px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.habits-section {
+    margin-bottom: 30px;
 }
 
 .habits-section h2, .calendar-section h2, .daily-details-section h2 {
@@ -302,14 +338,6 @@ header p {
 }
 
 /* 일일 상세 섹션 */
-.daily-details-section {
-    background: white;
-    border-radius: 15px;
-    padding: 25px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    margin-bottom: 30px;
-}
-
 .daily-details-section h2 {
     text-align: center;
     color: #a0aec0;
@@ -460,10 +488,6 @@ header p {
 
 /* 트렌드 차트 스타일 */
 .trend-chart, .data-management {
-    background: white;
-    border-radius: 15px;
-    padding: 25px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     margin-top: 20px;
 }
 
@@ -680,3 +704,5 @@ header p {
 .sticker {
     animation: stickerAppear 0.3s ease-out;
 }
+
+
