@@ -45,8 +45,7 @@ class HabitTracker {
         const importFileInput = document.getElementById('importJsonFile');
         if (importFileInput) importFileInput.addEventListener('change', (e) => this.importFromFile(e));
         
-        const importTextBtn = document.getElementById('importJsonTextBtn');
-        if (importTextBtn) importTextBtn.addEventListener('click', () => this.importFromTextarea());
+        
     }
 
     addHabit() {
@@ -347,21 +346,7 @@ class HabitTracker {
         reader.readAsText(file, 'utf-8');
     }
 
-    importFromTextarea() {
-        const textarea = document.getElementById('importJsonText');
-        if (!textarea) return;
-        const value = textarea.value.trim();
-        if (!value) {
-            alert('가져올 JSON 텍스트를 입력해주세요.');
-            return;
-        }
-        try {
-            this.applyImportedData(JSON.parse(value));
-            textarea.value = '';
-        } catch (err) {
-            alert('유효한 JSON 텍스트가 아닙니다.');
-        }
-    }
+    
 
     applyImportedData(payload) {
         if (!payload || typeof payload !== 'object' || !Array.isArray(payload.habits) || typeof payload.records !== 'object') {
