@@ -1,16 +1,16 @@
 class HabitTracker {
     constructor() {
         this.habits = this.loadHabits();
+        this.keywords = this.loadKeywords();
         this.currentDate = new Date();
         this.habitRecords = this.loadRecords();
         this.selectedDate = null;
-        this.motto = document.getElementById('lifeMotto');
         
         this.init();
     }
 
     init() {
-        this.loadMotto();
+        this.renderKeywords();
         this.setupEventListeners();
         this.renderCalendar();
         this.updateLegend();
@@ -18,12 +18,9 @@ class HabitTracker {
     }
 
     setupEventListeners() {
-        this.motto.addEventListener('blur', () => this.saveMotto());
-        this.motto.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                this.motto.blur();
-            }
+        document.getElementById('addKeywordBtn').addEventListener('click', () => this.addKeyword());
+        document.getElementById('keywordInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.addKeyword();
         });
 
         document.getElementById('addHabitBtn').addEventListener('click', () => this.addHabit());
@@ -51,9 +48,11 @@ class HabitTracker {
     addHabit() {
         const nameInput = document.getElementById('habitName');
         const colorSelect = document.getElementById('habitColor');
+        const isImportantCheckbox = document.getElementById('isImportant');
         const name = nameInput.value.trim();
         const color = colorSelect.value;
-        
+        const isImportant = isImportantCheckbox.checked;
+
         if (!name) {
             alert('습관 이름을 입력해주세요!');
             return;
@@ -63,7 +62,7 @@ class HabitTracker {
             return;
         }
 
-        const newHabit = { id: Date.now().toString(), name, color };
+        const newHabit = { id: Date.now().toString(), name, color, important: isImportant };
         this.habits.push(newHabit);
         this.saveHabits();
         this.updateLegend();
@@ -72,6 +71,7 @@ class HabitTracker {
         
         nameInput.value = '';
         colorSelect.value = 'blue';
+        isImportantCheckbox.checked = false;
         this.showMessage('새 습관이 추가되었습니다! 🎉');
     }
 
@@ -94,6 +94,15 @@ class HabitTracker {
         this.showMessage('습관이 삭제되었습니다.');
     }
 
+    toggleHabitImportance(habitId) {
+        const habit = this.habits.find(h => h.id === habitId);
+        if (habit) {
+            habit.important = !habit.important;
+            this.saveHabits();
+            this.updateLegend();
+        }
+    }
+
     updateLegend() {
         const legendItems = document.getElementById('legendItems');
         legendItems.innerHTML = '';
@@ -106,14 +115,24 @@ class HabitTracker {
         this.habits.forEach(habit => {
             const item = document.createElement('div');
             item.className = 'legend-item';
+            if (habit.important) {
+                item.classList.add('important');
+            }
             item.style.borderLeftColor = this.getColorValue(habit.color);
             item.innerHTML = `
                 <div class="legend-info">
+                    <span class="important-toggle">${habit.important ? '⭐' : '✩'}</span>
                     <div class="legend-color color-${habit.color}"></div>
                     <span class="legend-name">${habit.name}</span>
                 </div>
                 <button class="delete-habit" title="습관 삭제">×</button>
             `;
+
+            item.querySelector('.important-toggle').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleHabitImportance(habit.id);
+            });
+
             item.querySelector('.delete-habit').addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.deleteHabit(habit.id);
@@ -268,7 +287,49 @@ class HabitTracker {
         this.renderTrendChart();
     }
 
-        addMemo() {
+    renderKeywords() {
+        const container = document.getElementById('keywordsContainer');
+        container.innerHTML = '';
+        this.keywords.forEach((keyword, index) => {
+            const tag = document.createElement('div');
+            tag.className = 'keyword-tag';
+            tag.innerHTML = `
+                <span>${keyword}</span>
+                <button class="delete-keyword" data-index="${index}">×</button>
+            `;
+            container.appendChild(tag);
+        });
+
+        // Add event listeners for delete buttons
+        container.querySelectorAll('.delete-keyword').forEach(button => {
+            button.addEventListener('click', (e) => {
+                this.deleteKeyword(parseInt(e.target.dataset.index));
+            });
+        });
+    }
+
+    addKeyword() {
+        const input = document.getElementById('keywordInput');
+        const keyword = input.value.trim();
+        if (keyword && !this.keywords.includes(keyword)) {
+            this.keywords.push(keyword);
+            this.saveKeywords();
+            this.renderKeywords();
+            input.value = '';
+        } else if (this.keywords.includes(keyword)) {
+            alert('이미 존재하는 키워드입니다.');
+        }
+    }
+
+    deleteKeyword(index) {
+        if (index >= 0 && index < this.keywords.length) {
+            this.keywords.splice(index, 1);
+            this.saveKeywords();
+            this.renderKeywords();
+        }
+    }
+
+    addMemo() {
         if (!this.selectedDate) {
             alert('메모를 추가할 날짜를 먼저 선택해주세요.');
             return;
@@ -311,7 +372,7 @@ class HabitTracker {
     // --- 데이터 관리 및 유틸리티 함수들 ---
 
     buildExportPayload() {
-        return { version: 3, exportedAt: new Date().toISOString(), habits: this.habits, records: this.habitRecords, motto: this.motto.textContent.trim() };
+        return { version: 3, exportedAt: new Date().toISOString(), habits: this.habits, records: this.habitRecords, keywords: this.keywords };
     }
 
     exportDataAsJson() {
@@ -359,10 +420,10 @@ class HabitTracker {
 
         this.habits = payload.habits;
         this.habitRecords = this.migrateRecords(payload.records); // 마이그레이션 적용
-        this.motto.textContent = payload.motto || '';
+        this.keywords = Array.isArray(payload.keywords) ? payload.keywords : [];
         this.saveHabits();
         this.saveRecords();
-        this.saveMotto();
+        this.saveKeywords();
 
         this.selectedDate = null;
         document.getElementById('dailyDetailsTitle').style.display = 'block';
@@ -371,6 +432,7 @@ class HabitTracker {
         this.updateLegend();
         this.renderCalendar();
         this.renderTrendChart();
+        this.renderKeywords();
         this.showMessage('데이터를 가져왔습니다. (이전 데이터는 로컬 백업됨)');
     }
 
@@ -484,17 +546,8 @@ class HabitTracker {
         }, 2000);
     }
 
-    loadMotto() {
-        const savedMotto = localStorage.getItem('habitTracker_motto');
-        if (savedMotto) {
-            this.motto.textContent = savedMotto;
-        }
-    }
-
-    saveMotto() {
-        const newMotto = this.motto.textContent.trim();
-        localStorage.setItem('habitTracker_motto', newMotto);
-    }
+    saveKeywords() { localStorage.setItem('habitTracker_keywords', JSON.stringify(this.keywords)); }
+    loadKeywords() { return JSON.parse(localStorage.getItem('habitTracker_keywords') || '[]'); }
 
     saveHabits() { localStorage.setItem('habitTracker_habits', JSON.stringify(this.habits)); }
     loadHabits() { return JSON.parse(localStorage.getItem('habitTracker_habits') || '[]'); }

@@ -13,9 +13,15 @@
             <p>매일의 습관을 기록하고 달력에 스티커를 붙여보세요!</p>
         </header>
 
-        <!-- 인생의 모토 섹션 -->
-        <div class="motto-section">
-            <p id="lifeMotto" contenteditable="true" spellcheck="false" data-placeholder="클릭하여 인생의 모토를 입력하세요..."></p>
+        <!-- 키워드 섹션 -->
+        <div class="keywords-section">
+            <div id="keywordsContainer" class="keywords-container">
+                <!-- 키워드가 여기에 동적으로 추가됩니다 -->
+            </div>
+            <div class="add-keyword">
+                <input type="text" id="keywordInput" placeholder="새 키워드 추가...">
+                <button id="addKeywordBtn">추가</button>
+            </div>
         </div>
 
         <div class="main-content">
@@ -66,6 +72,10 @@
                     <option value="pink">🟣 핑크</option>
                     <option value="slate">⚫ 슬레이트</option>
                 </select>
+                <label style="display: flex; align-items: center; gap: 5px; padding: 0 10px; color: #4a5568; cursor: pointer;">
+                    <input type="checkbox" id="isImportant" style="width: 18px; height: 18px; cursor: pointer;">
+                    중요 습관
+                </label>
                 <button id="addHabitBtn">추가</button>
             </div>
             <div class="legend-items" id="legendItems">
