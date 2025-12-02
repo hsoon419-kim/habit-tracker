@@ -62,7 +62,7 @@ class HabitTracker {
             return;
         }
 
-        const newHabit = { id: Date.now().toString(), name, color, important: isImportant };
+        const newHabit = { id: Date.now().toString(), name, color, important: isImportant, disabled: false };
         this.habits.push(newHabit);
         this.saveHabits();
         this.updateLegend();
@@ -103,6 +103,18 @@ class HabitTracker {
         }
     }
 
+    toggleHabitDisabled(habitId) {
+        const habit = this.habits.find(h => h.id === habitId);
+        if (habit) {
+            habit.disabled = !habit.disabled;
+            this.saveHabits();
+            this.updateLegend();
+            if (this.selectedDate) {
+                this.renderDailyDetails();
+            }
+        }
+    }
+
     updateLegend() {
         const legendItems = document.getElementById('legendItems');
         legendItems.innerHTML = '';
@@ -115,9 +127,7 @@ class HabitTracker {
         this.habits.forEach(habit => {
             const item = document.createElement('div');
             item.className = 'legend-item';
-            if (habit.important) {
-                item.classList.add('important');
-            }
+            
             item.style.borderLeftColor = this.getColorValue(habit.color);
             item.innerHTML = `
                 <div class="legend-info">
@@ -190,12 +200,17 @@ class HabitTracker {
         const record = this.getRecord(dateKey);
         stickersContainer.innerHTML = '';
 
-        record.completed.forEach(habitId => {
-            const habit = this.habits.find(h => h.id === habitId);
-            if (habit) {
+        this.habits.forEach(habit => {
+            const habitState = record.habitStates[habit.id];
+            if (habitState === 'completed') {
                 const sticker = document.createElement('div');
                 sticker.className = `sticker color-${habit.color}`;
                 sticker.title = habit.name;
+                stickersContainer.appendChild(sticker);
+            } else if (habitState === 'skipped') {
+                const sticker = document.createElement('div');
+                sticker.className = `sticker skipped-sticker`; // New class for skipped sticker
+                sticker.title = `${habit.name} (건너뜀)`;
                 stickersContainer.appendChild(sticker);
             }
         });
@@ -232,16 +247,47 @@ class HabitTracker {
             this.habits.forEach(habit => {
                 const item = document.createElement('div');
                 item.className = 'daily-habit-item';
-                const isChecked = record.completed.includes(habit.id);
+                if (habit.important) {
+                    item.classList.add('important');
+                }
+                // Global disable for habit
+                if (habit.disabled) {
+                    item.classList.add('globally-disabled'); // New class for global disable
+                }
+
+                const habitState = record.habitStates[habit.id] || 'missed'; // Default to 'missed'
+
+                const isCompleted = habitState === 'completed';
+                const isSkipped = habitState === 'skipped';
+                const isDisabledForDay = habit.disabled || isSkipped; // Disabled if globally disabled or skipped for the day
+
                 item.innerHTML = `
-                    <label for="habit-check-${habit.id}">
-                        <input type="checkbox" id="habit-check-${habit.id}" ${isChecked ? 'checked' : ''}>
-                        <span class="legend-color color-${habit.color}"></span>
-                        ${habit.name}
+                    <label class="daily-habit-label ${isDisabledForDay ? 'disabled-label' : ''}">
+                        <input type="checkbox" class="habit-checkbox" ${isCompleted ? 'checked' : ''} ${isDisabledForDay ? 'disabled' : ''}>
+                        <span>${habit.name}</span>
+                    </label>
+                    <label class="switch skip-toggle-switch" title="${isSkipped ? '건너뛰기 해제' : '오늘 건너뛰기'}">
+                        <input type="checkbox" class="skip-toggle-input" ${isSkipped ? 'checked' : ''}>
+                        <span class="slider round"></span>
                     </label>
                 `;
-                item.querySelector('input').addEventListener('change', (e) => {
-                    this.updateHabitStatus(habit.id, e.target.checked);
+
+                // Event listener for checkbox (completed/missed)
+                item.querySelector('.habit-checkbox').addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        this.updateDailyHabitState(habit.id, 'completed');
+                    } else {
+                        this.updateDailyHabitState(habit.id, 'missed');
+                    }
+                });
+
+                // Event listener for skip toggle
+                item.querySelector('.skip-toggle-input').addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        this.updateDailyHabitState(habit.id, 'skipped'); // Skip
+                    } else {
+                        this.updateDailyHabitState(habit.id, 'missed'); // Unskip
+                    }
                 });
                 dailyHabitsList.appendChild(item);
             });
@@ -271,20 +317,15 @@ class HabitTracker {
         }
     }
 
-    updateHabitStatus(habitId, isChecked) {
+    updateDailyHabitState(habitId, newState) { // newState can be 'completed', 'missed', 'skipped'
         const dateKey = this.getDateKey(this.selectedDate);
         const record = this.getRecord(dateKey);
-        const habitExists = record.completed.includes(habitId);
-
-        if (isChecked && !habitExists) {
-            record.completed.push(habitId);
-        } else if (!isChecked && habitExists) {
-            record.completed = record.completed.filter(id => id !== habitId);
-        }
+        record.habitStates[habitId] = newState;
 
         this.saveRecords();
         this.renderCalendar();
         this.renderTrendChart();
+        this.renderDailyDetails(); // Re-render to update UI
     }
 
     renderKeywords() {
@@ -372,7 +413,7 @@ class HabitTracker {
     // --- 데이터 관리 및 유틸리티 함수들 ---
 
     buildExportPayload() {
-        return { version: 3, exportedAt: new Date().toISOString(), habits: this.habits, records: this.habitRecords, keywords: this.keywords };
+        return { version: 4, exportedAt: new Date().toISOString(), habits: this.habits, records: this.habitRecords, keywords: this.keywords };
     }
 
     exportDataAsJson() {
@@ -439,15 +480,34 @@ class HabitTracker {
     migrateRecords(records) {
         // version 1 -> 2 (add .completed and .memos)
         // version 2 -> 3 (memos string[] to object[])
+        // version 3 -> 4 (completed[] to habitStates{})
         Object.keys(records).forEach(dateKey => {
             const record = records[dateKey];
             if (Array.isArray(record)) { // v1 data: ["habitId1", ...]
+                const habitStates = {};
+                record.forEach(habitId => habitStates[habitId] = 'completed');
                 records[dateKey] = {
-                    completed: record,
+                    habitStates: habitStates,
                     memos: []
                 };
             } else if (record && record.memos && record.memos.length > 0 && typeof record.memos[0] === 'string') { // v2 data
                 record.memos = record.memos.map(memoText => ({ text: memoText, done: false }));
+                // If it's still using 'completed' array, convert it to 'habitStates'
+                if (Array.isArray(record.completed)) {
+                    const habitStates = {};
+                    record.completed.forEach(habitId => habitStates[habitId] = 'completed');
+                    record.habitStates = habitStates;
+                    delete record.completed; // Remove old 'completed' array
+                }
+            } else if (record && Array.isArray(record.completed)) { // v3 data (has memos, but completed is still array)
+                const habitStates = {};
+                record.completed.forEach(habitId => habitStates[habitId] = 'completed');
+                record.habitStates = habitStates;
+                delete record.completed; // Remove old 'completed' array
+            }
+            // Ensure habitStates exists and is an object
+            if (!record.habitStates || typeof record.habitStates !== 'object') {
+                record.habitStates = {};
             }
         });
         return records;
@@ -455,8 +515,14 @@ class HabitTracker {
 
     getRecord(dateKey) {
         if (!this.habitRecords[dateKey]) {
-            this.habitRecords[dateKey] = { completed: [], memos: [] };
+            this.habitRecords[dateKey] = { habitStates: {}, memos: [] };
         }
+        // Ensure all current habits have a state, default to 'missed'
+        this.habits.forEach(habit => {
+            if (!(habit.id in this.habitRecords[dateKey].habitStates)) {
+                this.habitRecords[dateKey].habitStates[habit.id] = 'missed';
+            }
+        });
         return this.habitRecords[dateKey];
     }
 
@@ -483,9 +549,10 @@ class HabitTracker {
             const date = new Date(today);
             date.setDate(today.getDate() - (29 - i));
             const record = this.getRecord(this.getDateKey(date));
+            const habitState = record.habitStates[habitId] || 'missed'; // Default to 'missed'
             data.push({
                 date: date,
-                completed: record.completed.includes(habitId),
+                state: habitState, // Store the state directly
                 isToday: this.isSameDate(date, today)
             });
         }
@@ -516,10 +583,24 @@ class HabitTracker {
     }
 
     createChartBar(day, color) {
-        const height = day.completed ? '100%' : '20%';
-        const classes = ['chart-bar', day.completed ? 'completed' : 'missed'];
+        let height = '20%'; // Default for missed
+        let classes = ['chart-bar'];
+        let title = `${day.date.toLocaleDateString()}: 미완료`;
+
+        if (day.state === 'completed') {
+            height = '100%';
+            classes.push('completed');
+            title = `${day.date.toLocaleDateString()}: 완료`;
+        } else if (day.state === 'skipped') {
+            height = '50%'; // Half height for skipped
+            classes.push('skipped'); // New class for skipped bar
+            title = `${day.date.toLocaleDateString()}: 건너뜀`;
+        } else { // missed
+            classes.push('missed');
+        }
+
         if (day.isToday) classes.push('today');
-        return `<div class="${classes.join(' ')}" style="background-color: ${this.getColorValue(color)}; height: ${height};" title="${day.date.toLocaleDateString()}: ${day.completed ? '완료' : '미완료'}"></div>`;
+        return `<div class="${classes.join(' ')}" style="background-color: ${this.getColorValue(color)}; height: ${height};" title="${title}"></div>`;
     }
 
     getColorValue(colorName) {

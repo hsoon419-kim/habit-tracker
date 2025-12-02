@@ -784,14 +784,131 @@ header p {
 }
 
 @keyframes glowing {
-    0% { box-shadow: 0 0 3px #fde047; }
-    50% { box-shadow: 0 0 10px #fde047, 0 0 5px #fde047; }
-    100% { box-shadow: 0 0 3px #fde047; }
+    0% { box-shadow: 0 0 4px #facc15; }
+    50% { box-shadow: 0 0 12px #fde047, 0 0 8px #facc15; }
+    100% { box-shadow: 0 0 4px #facc15; }
 }
 
-.legend-item.important {
+.daily-habit-item.important {
     animation: glowing 2.5s infinite ease-in-out;
     border-radius: 10px;
+    border: 1px solid #fde047;
+    background-color: #fffbeb;
 }
 
+.legend-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
+/* The switch - the box around the slider */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 24px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #667eea;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #667eea;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(16px);
+  -ms-transform: translateX(16px);
+  transform: translateX(16px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 24px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+.daily-habit-item.disabled {
+    opacity: 0.5;
+    background-color: #f1f5f9;
+}
+
+.daily-habit-item.disabled label {
+    cursor: not-allowed;
+}
+
+.daily-habit-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Distribute space between label and button */
+    padding: 12px 15px;
+    background: #f7fafc;
+    border-radius: 10px;
+    transition: background-color 0.3s;
+}
+
+.daily-habit-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-weight: 500;
+    flex-grow: 1; /* Allow label to take available space */
+}
+
+.daily-habit-label.disabled-label {
+    cursor: not-allowed;
+    color: #a0aec0; /* Grey out text */
+}
+
+.daily-habit-item.globally-disabled {
+    opacity: 0.6;
+    background-color: #e2e8f0;
+}
+
+.sticker.skipped-sticker {
+    background-color: #a0aec0; /* Grey for skipped sticker */
+    border: 1px solid #718096;
+}
+
+.chart-bar.skipped {
+    opacity: 0.6;
+    background-color: #a0aec0 !important; /* Grey for skipped bar */
+}
