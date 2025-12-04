@@ -42,7 +42,59 @@ class HabitTracker {
         const importFileInput = document.getElementById('importJsonFile');
         if (importFileInput) importFileInput.addEventListener('change', (e) => this.importFromFile(e));
         
-        
+        // Delegated event listener for daily habits
+        document.getElementById('dailyHabitsList').addEventListener('change', (e) => {
+            const target = e.target;
+            const habitItem = target.closest('.daily-habit-item');
+            if (!habitItem) return;
+
+            const habitId = habitItem.dataset.id;
+
+            if (target.classList.contains('habit-checkbox')) {
+                this.updateDailyHabitState(habitId, target.checked ? 'completed' : 'missed');
+            } else if (target.classList.contains('skip-toggle-input')) {
+                this.updateDailyHabitState(habitId, target.checked ? 'skipped' : 'missed');
+            }
+        });
+
+        // Delegated event listener for legend items
+        document.getElementById('legendItems').addEventListener('click', (e) => {
+            const target = e.target;
+            const legendItem = target.closest('.legend-item');
+            if (!legendItem) return;
+            
+            const habitId = legendItem.dataset.id;
+
+            if (target.classList.contains('important-toggle')) {
+                e.stopPropagation();
+                this.toggleHabitImportance(habitId);
+            } else if (target.classList.contains('delete-habit')) {
+                e.stopPropagation();
+                this.deleteHabit(habitId);
+            }
+        });
+
+        // Delegated event listener for keywords
+        document.getElementById('keywordsContainer').addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-keyword')) {
+                this.deleteKeyword(parseInt(e.target.dataset.index));
+            }
+        });
+
+        // Delegated event listener for memos
+        document.getElementById('memoList').addEventListener('click', (e) => {
+            const target = e.target;
+            const memoItem = target.closest('.memo-item');
+            if (!memoItem) return;
+
+            const memoIndex = parseInt(memoItem.dataset.index);
+
+            if (target.classList.contains('delete-memo')) {
+                this.deleteMemo(memoIndex);
+            } else if (target.matches('input[type="checkbox"]')) {
+                this.updateMemoStatus(memoIndex, target.checked);
+            }
+        });
     }
 
     addHabit() {
@@ -127,6 +179,7 @@ class HabitTracker {
         this.habits.forEach(habit => {
             const item = document.createElement('div');
             item.className = 'legend-item';
+            item.dataset.id = habit.id;
             
             item.style.borderLeftColor = this.getColorValue(habit.color);
             item.innerHTML = `
@@ -137,16 +190,6 @@ class HabitTracker {
                 </div>
                 <button class="delete-habit" title="습관 삭제">×</button>
             `;
-
-            item.querySelector('.important-toggle').addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.toggleHabitImportance(habit.id);
-            });
-
-            item.querySelector('.delete-habit').addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.deleteHabit(habit.id);
-            });
             legendItems.appendChild(item);
         });
     }
@@ -231,7 +274,7 @@ class HabitTracker {
         this.renderDailyDetails();
     }
 
-        renderDailyDetails() {
+    renderDailyDetails() {
         if (!this.selectedDate) return;
 
         const dateKey = this.getDateKey(this.selectedDate);
@@ -247,19 +290,19 @@ class HabitTracker {
             this.habits.forEach(habit => {
                 const item = document.createElement('div');
                 item.className = 'daily-habit-item';
+                item.dataset.id = habit.id;
+
                 if (habit.important) {
                     item.classList.add('important');
                 }
-                // Global disable for habit
                 if (habit.disabled) {
-                    item.classList.add('globally-disabled'); // New class for global disable
+                    item.classList.add('globally-disabled');
                 }
 
-                const habitState = record.habitStates[habit.id] || 'missed'; // Default to 'missed'
-
+                const habitState = record.habitStates[habit.id] || 'missed';
                 const isCompleted = habitState === 'completed';
                 const isSkipped = habitState === 'skipped';
-                const isDisabledForDay = habit.disabled || isSkipped; // Disabled if globally disabled or skipped for the day
+                const isDisabledForDay = habit.disabled || isSkipped;
 
                 item.innerHTML = `
                     <label class="daily-habit-label ${isDisabledForDay ? 'disabled-label' : ''}">
@@ -271,24 +314,6 @@ class HabitTracker {
                         <span class="slider round"></span>
                     </label>
                 `;
-
-                // Event listener for checkbox (completed/missed)
-                item.querySelector('.habit-checkbox').addEventListener('change', (e) => {
-                    if (e.target.checked) {
-                        this.updateDailyHabitState(habit.id, 'completed');
-                    } else {
-                        this.updateDailyHabitState(habit.id, 'missed');
-                    }
-                });
-
-                // Event listener for skip toggle
-                item.querySelector('.skip-toggle-input').addEventListener('change', (e) => {
-                    if (e.target.checked) {
-                        this.updateDailyHabitState(habit.id, 'skipped'); // Skip
-                    } else {
-                        this.updateDailyHabitState(habit.id, 'missed'); // Unskip
-                    }
-                });
                 dailyHabitsList.appendChild(item);
             });
         }
@@ -297,6 +322,7 @@ class HabitTracker {
             record.memos.forEach((memo, index) => {
                 const item = document.createElement('div');
                 item.className = 'memo-item';
+                item.dataset.index = index;
                 if (memo.done) item.classList.add('done');
                 
                 item.innerHTML = `
@@ -306,10 +332,6 @@ class HabitTracker {
                     </label>
                     <button class="delete-memo">×</button>
                 `;
-                item.querySelector('input').addEventListener('change', (e) => {
-                    this.updateMemoStatus(index, e.target.checked);
-                });
-                item.querySelector('.delete-memo').addEventListener('click', () => this.deleteMemo(index));
                 memoList.appendChild(item);
             });
         } else {
@@ -339,13 +361,6 @@ class HabitTracker {
                 <button class="delete-keyword" data-index="${index}">×</button>
             `;
             container.appendChild(tag);
-        });
-
-        // Add event listeners for delete buttons
-        container.querySelectorAll('.delete-keyword').forEach(button => {
-            button.addEventListener('click', (e) => {
-                this.deleteKeyword(parseInt(e.target.dataset.index));
-            });
         });
     }
 
@@ -560,7 +575,7 @@ class HabitTracker {
     }
 
     createHabitChart(habit, data) {
-        const completedCount = data.filter(d => d.completed).length;
+        const completedCount = data.filter(d => d.state === 'completed').length;
         const completionRate = Math.round((completedCount / 30) * 100);
         const chartElement = document.createElement('div');
         chartElement.className = 'habit-chart';
