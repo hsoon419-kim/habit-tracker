@@ -71,6 +71,12 @@ class HabitTracker {
             } else if (target.classList.contains('delete-habit')) {
                 e.stopPropagation();
                 this.deleteHabit(habitId);
+            } else if (target.classList.contains('move-up')) {
+                e.stopPropagation();
+                this.moveHabit(habitId, 'up');
+            } else if (target.classList.contains('move-down')) {
+                e.stopPropagation();
+                this.moveHabit(habitId, 'down');
             }
         });
 
@@ -167,6 +173,24 @@ class HabitTracker {
         }
     }
 
+    moveHabit(habitId, direction) {
+        const index = this.habits.findIndex(h => h.id === habitId);
+        if (index === -1) return;
+
+        if (direction === 'up' && index > 0) {
+            [this.habits[index], this.habits[index - 1]] = [this.habits[index - 1], this.habits[index]];
+        } else if (direction === 'down' && index < this.habits.length - 1) {
+            [this.habits[index], this.habits[index + 1]] = [this.habits[index + 1], this.habits[index]];
+        } else {
+            return;
+        }
+
+        this.saveHabits();
+        this.updateLegend();
+        this.renderTrendChart();
+        if (this.selectedDate) this.renderDailyDetails();
+    }
+
     updateLegend() {
         const legendItems = document.getElementById('legendItems');
         legendItems.innerHTML = '';
@@ -176,19 +200,27 @@ class HabitTracker {
             return;
         }
 
-        this.habits.forEach(habit => {
+        this.habits.forEach((habit, index) => {
             const item = document.createElement('div');
             item.className = 'legend-item';
             item.dataset.id = habit.id;
             
             item.style.borderLeftColor = this.getColorValue(habit.color);
+            
+            const isFirst = index === 0;
+            const isLast = index === this.habits.length - 1;
+
             item.innerHTML = `
                 <div class="legend-info">
-                    <span class="important-toggle">${habit.important ? '⭐' : '✩'}</span>
+                    <span class="important-toggle" title="중요 습관">${habit.important ? '⭐' : '✩'}</span>
                     <div class="legend-color color-${habit.color}"></div>
                     <span class="legend-name">${habit.name}</span>
                 </div>
-                <button class="delete-habit" title="습관 삭제">×</button>
+                <div class="legend-actions">
+                    <button class="move-up" title="위로" ${isFirst ? 'disabled' : ''}>▲</button>
+                    <button class="move-down" title="아래로" ${isLast ? 'disabled' : ''}>▼</button>
+                    <button class="delete-habit" title="습관 삭제">×</button>
+                </div>
             `;
             legendItems.appendChild(item);
         });

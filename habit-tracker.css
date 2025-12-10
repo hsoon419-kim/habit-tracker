@@ -278,24 +278,46 @@ header p {
     color: #2d3748;
 }
 
-.delete-habit {
-    background: #e53e3e;
-    color: white;
+.legend-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-actions button {
+    background: transparent;
     border: none;
     border-radius: 50%;
     width: 28px;
     height: 28px;
     cursor: pointer;
     font-size: 14px;
-    transition: all 0.3s;
+    font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
+    color: #718096;
 }
 
-.delete-habit:hover {
-    background: #c53030;
-    transform: scale(1.1);
+.legend-actions button:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #2d3748;
+}
+
+.legend-actions button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.legend-actions .delete-habit {
+    font-size: 20px;
+    font-weight: normal;
+}
+
+.legend-actions .delete-habit:hover {
+    background: #fecaca;
+    color: #c53030;
 }
 
 .calendar-controls {
